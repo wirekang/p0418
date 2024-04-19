@@ -27,10 +27,10 @@ import (
 //  2. Define authorized redirect URIs for the credential in the Google APIs
 //     Console and set the RedirectURL property on the config object to one
 //     of those redirect URIs. For example:
-//     config.RedirectURL = "http://localhost:8090"
+//     config.RedirectURL = "http://localhost:8080"
 //  3. In the startWebServer function below, update the URL in this line
 //     to match the redirect URI you selected:
-//     listener, err := net.Listen("tcp", "localhost:8090")
+//     listener, err := net.Listen("tcp", "localhost:8080")
 //     The redirect URI identifies the URI to which the user is sent after
 //     completing the authorization flow. The listener then captures the
 //     authorization code in the URL and passes it back to this script.
@@ -44,23 +44,12 @@ import (
 //     authorization code from the browser and enter it on the command line.
 const launchWebServer = true
 
-const missingClientSecretsMessage = `
-Please configure OAuth 2.0
-To make this sample run, you need to populate the client_secrets.json file
-found at:
-   %v
-with information from the {{ Google Cloud Console }}
-{{ https://cloud.google.com/console }}
-For more information about the client_secrets.json file format, please visit:
-https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
-`
-
 // getClient uses a Context and Config to retrieve a Token
 // then generate a Client. It returns the generated Client.
-func getClient(scope string) *http.Client {
+func getClient(secretFile string, scope string) *http.Client {
 	ctx := context.Background()
 
-	b, err := os.ReadFile("client_secret.json")
+	b, err := os.ReadFile(secretFile)
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -74,7 +63,7 @@ func getClient(scope string) *http.Client {
 
 	// Use a redirect URI like this for a web app. The redirect URI must be a
 	// valid one for your OAuth2 credentials.
-	config.RedirectURL = "http://localhost:8090"
+	config.RedirectURL = "http://localhost:8080"
 	// Use the following redirect URI if launchWebServer=false in oauth2.go
 	// config.RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
 
@@ -102,7 +91,7 @@ func getClient(scope string) *http.Client {
 // startWebServer starts a web server that listens on http://localhost:8080.
 // The webserver waits for an oauth code in the three-legged auth flow.
 func startWebServer() (codeCh chan string, err error) {
-	listener, err := net.Listen("tcp", "localhost:8090")
+	listener, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +118,7 @@ func openURL(url string) error {
 	case "linux":
 		err = exec.Command("xdg-open", url).Start()
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:4001/").Start()
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
 		err = exec.Command("open", url).Start()
 	default:
@@ -176,7 +165,7 @@ func getTokenFromWeb(config *oauth2.Config, authURL string) (*oauth2.Token, erro
 		log.Fatalf("Unable to open authorization URL in web server: %v", err)
 	} else {
 		fmt.Println("Your browser has been opened to an authorization URL.",
-			" This program will resume once authorization has been provided.\n")
+			" This program will resume once authorization has been provided.")
 		fmt.Println(authURL)
 	}
 
@@ -225,16 +214,17 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 type UploadProps struct {
-	Title       string
-	Description string
-	Category    string
-	Tags        []string
-	Public      bool
-	File        string
+	Title            string
+	Description      string
+	Category         string
+	Tags             []string
+	Public           bool
+	File             string
+	ClientSecretFile string
 }
 
 func Upload(props UploadProps) (string, error) {
-	client := getClient(youtube.YoutubeUploadScope)
+	client := getClient(props.ClientSecretFile, youtube.YoutubeUploadScope)
 	service, err := youtube.New(client)
 	if err != nil {
 		return "", err
@@ -257,7 +247,7 @@ func Upload(props UploadProps) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	call := service.Videos.Insert([]string{"snippets", "status"}, v)
+	call := service.Videos.Insert([]string{"snippet", "status"}, v)
 	response, err := call.Media(file).Do()
 	if err != nil {
 		return "", err

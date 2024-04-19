@@ -18,6 +18,20 @@ type repositoryData struct {
 	OriginalFilesDir        string
 	EditedFilesDir          string
 	YoutubeClientSecretFile string
+	Videos                  []videoData
+	EditStart               int
+	EditEnd                 int
+}
+type videoData struct {
+	Id                  int
+	SourceFileName      string
+	SourceFileCreatedAt int64
+	CategoryId          string
+	FormatId            string
+	CreatedAt           int64
+	EditedAt            int64
+	Url                 string
+	UploadedAt          int64
 }
 
 func initRepository(file string) (*repository, error) {
@@ -48,6 +62,7 @@ func (r *repository) save() error {
 	if err != nil {
 		return err
 	}
+	copyFile(r.File, r.File+"_backup")
 	f, err := os.Create(r.File)
 	if err != nil {
 		return err
