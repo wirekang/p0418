@@ -2,49 +2,33 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/wirekang/p0418/cfg"
+	"github.com/wirekang/p0418/cmd"
+	"github.com/wirekang/p0418/ctl"
+	"github.com/wirekang/p0418/utils"
+	"github.com/wirekang/p0418/vdo"
 )
 
-func main() {
-	for {
-		r, err := initRepository("data.json")
-		if err != nil {
-			panic(err)
-		}
-		err = os.MkdirAll(r.data.OriginalFilesDir, os.ModeDir)
-		if err != nil {
-			panic(err)
-		}
-		err = os.MkdirAll(r.data.EditedFilesDir, os.ModeDir)
-		if err != nil {
-			panic(err)
-		}
-		videos, err := initVideos(r)
-		if err != nil {
-			panic(err)
-		}
-		ctx := commandContext{
-			repo:        r,
-			videos:      videos,
-			editOptions: editOptions{start: r.data.EditStart, end: r.data.EditEnd},
-		}
-		printVideos(videos)
-		printEditOptions(ctx.editOptions)
-		sel := &survey.Select{
-			Options: commandIds,
-			VimMode: true,
-		}
-		var cmdId string
-		survey.AskOne(sel, &cmdId)
-		err = runCommand(&ctx, cmdId)
-		if err != nil {
-			panic(err)
-		}
+func m() error {
+	err := cfg.Load()
+	if err != nil {
+		return err
 	}
+	err = utils.MkdirAll(cfg.Data.OriginalFilesDir, cfg.Data.OutputFilesDir)
+	if err != nil {
+		return err
+	}
+	err = vdo.Load()
+	if err != nil {
+		return err
+	}
+	return ctl.Start(cmd.List(), cmd.Run)
 }
 
-func printEditOptions(eo editOptions) {
-	fmt.Printf("%d-%d\n", eo.start, eo.end)
+func main() {
+	err := m()
+	if err != nil {
+		fmt.Println("ERROR\n", err)
+	}
 }
